@@ -246,6 +246,7 @@ create policy "product-images admin delete"
 -- Seed data: 5 categories x 33 Herbalife/wellness products
 -- Re-runnable thanks to ON CONFLICT (slug).
 -- image_url / gallery point at local assets in public/ (served by Next).
+-- Prices are the owner's MRP (public/product-mrp.jpeg), stored as paise.
 -- Keep in sync with lib/seed-data.ts.
 --
 -- All text literals use dollar-quoted strings ($t$...$t$) so no
@@ -268,19 +269,19 @@ on conflict (slug) do update set
 insert into public.products (category_id, slug, name, description, price_paise, weight_grams, stock, image_url, gallery_image_urls) values
   ((select id from public.categories where slug = $t$weight-management$t$), $t$formula-1-nutritional-shake$t$, $t$Formula 1 Nutritional Shake Mix$t$,
     $t$The healthy meal in a glass. A balanced shake with 19 vitamins & minerals, 9 g protein and fibre - just 220 calories per serving. Available in 10 flavours from Mango to Kulfi.$t$,
-    230000, 500, 100, $t$/products/2.webp$t$, array[$t$/product-info/formula-1.jpeg$t$]),
+    217900, 500, 100, $t$/products/2.webp$t$, array[$t$/product-info/formula-1.jpeg$t$]),
   ((select id from public.categories where slug = $t$weight-management$t$), $t$personalized-protein-powder$t$, $t$Personalized Protein Powder$t$,
     $t$A soy & whey protein blend that helps control hunger and build lean muscle. Provides all 9 essential amino acids - add a scoop to your Formula 1 shake.$t$,
-    200000, 200, 100, $t$/products/3.webp$t$, array[$t$/product-info/protein.jpeg$t$]),
+    129500, 200, 100, $t$/products/3.webp$t$, array[$t$/product-info/protein.jpeg$t$]),
   ((select id from public.categories where slug = $t$weight-management$t$), $t$shakemate$t$, $t$ShakeMate$t$,
     $t$A milk & soy-based protein drink mix that makes your Formula 1 shake creamier and tastier. Low GI, lower lactose, no added sugar - with calcium and vitamin D.$t$,
-    130000, 550, 100, $t$/products/4.webp$t$, array[$t$/product-info/shakemate.jpeg$t$]),
+    65300, 550, 100, $t$/products/4.webp$t$, array[$t$/product-info/shakemate.jpeg$t$]),
   ((select id from public.categories where slug = $t$weight-management$t$), $t$cell-u-loss$t$, $t$Cell-U-Loss$t$,
     $t$A herbal tablet that supports healthy fluid balance and helps reduce bloating, with electrolyte minerals - corn silk, dandelion, parsley and potassium.$t$,
-    90000, null, 100, $t$/products/8.webp$t$, array[$t$/product-info/cell-u-lose.jpeg$t$]),
+    170500, null, 100, $t$/products/8.webp$t$, array[$t$/product-info/cell-u-lose.jpeg$t$]),
   ((select id from public.categories where slug = $t$weight-management$t$), $t$herbal-control$t$, $t$Herbal Control$t$,
     $t$A metabolism and energy booster with antioxidants from green, black and oolong tea. Helps improve alertness and supports weight management alongside diet and exercise.$t$,
-    180000, null, 100, $t$/products/9.webp$t$, array[$t$/product-info/herbal-control.jpeg$t$])
+    343300, null, 100, $t$/products/9.webp$t$, array[$t$/product-info/herbal-control.jpeg$t$])
 on conflict (slug) do update set
   name = excluded.name, description = excluded.description, price_paise = excluded.price_paise,
   weight_grams = excluded.weight_grams, image_url = excluded.image_url,
@@ -290,37 +291,37 @@ on conflict (slug) do update set
 insert into public.products (category_id, slug, name, description, price_paise, weight_grams, stock, image_url, gallery_image_urls) values
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$afresh-energy-drink-mix$t$, $t$Afresh Energy Drink Mix$t$,
     $t$A refreshing low-calorie energy drink (just 4 calories) with green tea and natural caffeine for alertness. Enjoy hot or cold in 7 flavours - Lemon, Ginger, Tulsi and more.$t$,
-    110000, 50, 100, $t$/products/1.webp$t$, array[$t$/product-info/afresh.jpeg$t$]),
+    81200, 50, 100, $t$/products/1.webp$t$, array[$t$/product-info/afresh.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$dinoshake-childrens-drink$t$, $t$Dinoshake Children's Nutritional Drink$t$,
     $t$A tasty nutritional drink mix for kids that supports healthy growth, bones and energy. Good-quality protein with vitamins A, C, D & E, calcium and iron. Chocolate & Strawberry.$t$,
-    140000, 200, 100, $t$/products/5.webp$t$, array[$t$/product-info/kids-nurtition.jpeg$t$]),
+    111500, 200, 100, $t$/products/5.webp$t$, array[$t$/product-info/kids-nurtition.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$formula-2-multivitamin$t$, $t$Formula 2 Multivitamin Complex$t$,
     $t$A daily multivitamin, mineral and herbal tablet that supports energy, immunity and bone health. With vitamins A, C, D, E, B-complex, calcium, iron, zinc and selenium.$t$,
-    150000, null, 100, $t$/products/6.webp$t$, array[$t$/product-info/multivitamin.jpeg$t$]),
+    200400, null, 100, $t$/products/6.webp$t$, array[$t$/product-info/multivitamin.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$cell-activator$t$, $t$Cell Activator$t$,
     $t$An antioxidant tablet with alpha lipoic acid and aloe vera that supports nutrient absorption and cellular energy production - for vitality and healthy aging.$t$,
-    160000, null, 100, $t$/products/7.webp$t$, array[$t$/product-info/cell-activator.jpeg$t$]),
+    221500, null, 100, $t$/products/7.webp$t$, array[$t$/product-info/cell-activator.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$aloe-plus$t$, $t$Aloe Plus$t$,
     $t$Aloe vera capsules that support healthy digestion, soothe the stomach and aid nutrient absorption - helping maintain digestive balance naturally.$t$,
-    120000, null, 100, $t$/products/10.webp$t$, array[$t$/product-info/digestive-health.jpeg$t$]),
+    105900, null, 100, $t$/products/10.webp$t$, array[$t$/product-info/digestive-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$activated-fiber$t$, $t$Activated Fibre$t$,
     $t$Dietary fibre tablets that help you feel full longer, support gut health and healthy blood-sugar levels. A blend of oat, citrus, pea and soluble fibre.$t$,
-    170000, null, 100, $t$/products/11.webp$t$, array[$t$/product-info/digestive-health.jpeg$t$]),
+    163600, null, 100, $t$/products/11.webp$t$, array[$t$/product-info/digestive-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$active-fiber-complex$t$, $t$Active Fibre Complex$t$,
     $t$An unflavoured fibre powder that adds daily fibre to any drink - supports digestion, satiety and weight management with citrus fibre and inulin.$t$,
-    190000, null, 100, $t$/products/12.webp$t$, array[$t$/product-info/digestive-health.jpeg$t$]),
+    255900, null, 100, $t$/products/12.webp$t$, array[$t$/product-info/digestive-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$simply-probiotic$t$, $t$Simply Probiotic$t$,
     $t$A convenient probiotic powder with clinically studied Bacillus coagulans that supports a healthy gut microbiome, digestion and immunity. No added sugar.$t$,
-    150000, null, 100, $t$/products/13.webp$t$, array[$t$/product-info/digestive-health-2.jpeg$t$]),
+    220900, null, 100, $t$/products/13.webp$t$, array[$t$/product-info/digestive-health-2.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$herbal-aloe-concentrate$t$, $t$Herbal Aloe Concentrate$t$,
     $t$A refreshing aloe vera drink concentrate to mix with water. Supports healthy digestion, soothes the stomach and helps maintain hydration. Low calorie.$t$,
-    200000, null, 100, $t$/products/14.webp$t$, array[$t$/product-info/digestive-health-2.jpeg$t$]),
+    269600, null, 100, $t$/products/14.webp$t$, array[$t$/product-info/digestive-health-2.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$triphala$t$, $t$Triphala$t$,
     $t$The classic Ayurvedic blend of Amla, Haritaki and Bibhitaki. Supports digestion, regular bowel movements, natural detox and overall wellbeing.$t$,
-    65000, null, 100, $t$/products/29.webp$t$, array[$t$/product-info/digestive-health-2.jpeg$t$]),
+    108900, null, 100, $t$/products/29.webp$t$, array[$t$/product-info/digestive-health-2.jpeg$t$]),
   ((select id from public.categories where slug = $t$daily-wellness$t$), $t$immune-health$t$, $t$Immune Health$t$,
     $t$An Ayurvedic-inspired tablet with Tulsi, Kalmegh and Katuki that supports natural immune function and respiratory wellness through seasonal changes. Vegetarian.$t$,
-    85000, null, 100, $t$/products/27.webp$t$, array[$t$/product-info/immune-health.jpeg$t$])
+    152800, null, 100, $t$/products/27.webp$t$, array[$t$/product-info/immune-health.jpeg$t$])
 on conflict (slug) do update set
   name = excluded.name, description = excluded.description, price_paise = excluded.price_paise,
   weight_grams = excluded.weight_grams, image_url = excluded.image_url,
@@ -330,34 +331,34 @@ on conflict (slug) do update set
 insert into public.products (category_id, slug, name, description, price_paise, weight_grams, stock, image_url, gallery_image_urls) values
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$calcium-tablets$t$, $t$Herbalife Calcium Tablets$t$,
     $t$Calcium, magnesium and vitamin D tablets that help maintain strong bones and healthy teeth, and support muscle and nerve function - ideal for active adults and women.$t$,
-    95000, null, 100, $t$/products/15.webp$t$, array[$t$/product-info/bone-health.jpeg$t$]),
+    120300, null, 100, $t$/products/15.webp$t$, array[$t$/product-info/bone-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$joint-support$t$, $t$Joint Support$t$,
     $t$Glucosamine tablets that help maintain healthy joint function, comfort and flexibility - supporting cartilage and reducing stiffness during daily activity.$t$,
-    140000, null, 100, $t$/products/16.webp$t$, array[$t$/product-info/bone-health.jpeg$t$]),
+    245500, null, 100, $t$/products/16.webp$t$, array[$t$/product-info/bone-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$herbalifeline$t$, $t$Herbalifeline$t$,
     $t$Highly purified marine lipid capsules rich in Omega-3 fatty acids (EPA & DHA) that help maintain a healthy cardiovascular system and normal triglyceride levels.$t$,
-    185000, null, 100, $t$/products/17.webp$t$, array[$t$/product-info/heart-health.jpeg$t$]),
+    266700, null, 100, $t$/products/17.webp$t$, array[$t$/product-info/heart-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$beta-heart$t$, $t$Beta Heart$t$,
     $t$A natural vanilla powder with 3 g of oat beta-glucan per serving that helps maintain healthy blood cholesterol levels. No added sugar - single-serve, on-the-go.$t$,
-    220000, null, 100, $t$/products/18.webp$t$, array[$t$/product-info/heart-health.jpeg$t$]),
+    224200, null, 100, $t$/products/18.webp$t$, array[$t$/product-info/heart-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$niteworks$t$, $t$Niteworks$t$,
     $t$A refreshing lemon-flavour powder with L-Arginine that helps produce nitric oxide overnight to support cardiovascular and circulatory health. With vitamins C, E and folic acid.$t$,
-    320000, null, 100, $t$/products/19.webp$t$, array[$t$/product-info/heart-health.jpeg$t$]),
+    712800, null, 100, $t$/products/19.webp$t$, array[$t$/product-info/heart-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$womens-choice$t$, $t$Woman's Choice$t$,
     $t$Soy isoflavone and chasteberry tablets that support women's hormonal balance and comfort through monthly cycles and menopause - plant-derived daily wellness.$t$,
-    130000, null, 100, $t$/products/20.webp$t$, array[$t$/product-info/women-halth.jpeg$t$]),
+    124500, null, 100, $t$/products/20.webp$t$, array[$t$/product-info/women-halth.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$male-factor-plus$t$, $t$Male Factor +$t$,
     $t$Fenugreek, pine bark extract and L-Citrulline tablets that support male vitality, healthy circulation and stamina - designed for adult men above 25.$t$,
-    150000, null, 100, $t$/products/21.webp$t$, array[$t$/product-info/mens-health.jpeg$t$]),
+    341000, null, 100, $t$/products/21.webp$t$, array[$t$/product-info/mens-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$ocular-defense$t$, $t$Ocular Defense$t$,
     $t$Lutein and zeaxanthin capsules that support healthy eyesight and macular health, protecting eyes from oxidative and blue-light stress - for those on screens all day.$t$,
-    160000, null, 100, $t$/products/22.webp$t$, array[$t$/product-info/eye-health.jpeg$t$]),
+    192700, null, 100, $t$/products/22.webp$t$, array[$t$/product-info/eye-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$sleep-enhancer$t$, $t$Sleep Enhancer$t$,
     $t$A caffeine-free nighttime drink with saffron extract (Affron) and vitamin B6 that helps improve sleep quality and supports calm - wake up refreshed. Vegan & gluten free.$t$,
-    170000, null, 100, $t$/products/26.webp$t$, array[$t$/product-info/sleep-enhance.jpeg$t$]),
+    169700, null, 100, $t$/products/26.webp$t$, array[$t$/product-info/sleep-enhance.jpeg$t$]),
   ((select id from public.categories where slug = $t$targeted-health$t$), $t$brain-health$t$, $t$Brain Health$t$,
     $t$Brahmi (Bacopa monnieri) tablets that support memory, focus and concentration - traditionally used in Ayurveda for cognitive performance and mental alertness.$t$,
-    90000, null, 100, $t$/products/28.webp$t$, array[$t$/product-info/brain-health.jpeg$t$])
+    146400, null, 100, $t$/products/28.webp$t$, array[$t$/product-info/brain-health.jpeg$t$])
 on conflict (slug) do update set
   name = excluded.name, description = excluded.description, price_paise = excluded.price_paise,
   weight_grams = excluded.weight_grams, image_url = excluded.image_url,
@@ -367,10 +368,10 @@ on conflict (slug) do update set
 insert into public.products (category_id, slug, name, description, price_paise, weight_grams, stock, image_url, gallery_image_urls) values
   ((select id from public.categories where slug = $t$sports-energy$t$), $t$h24-hydrate$t$, $t$H24 Hydrate$t$,
     $t$A low-calorie electrolyte drink that replenishes minerals lost through sweat and supports endurance and energy metabolism with B vitamins. Convenient sachets for any workout.$t$,
-    160000, null, 100, $t$/products/23.webp$t$, array[$t$/product-info/sports-nutrition.jpeg$t$]),
+    163600, null, 100, $t$/products/23.webp$t$, array[$t$/product-info/sports-nutrition.jpeg$t$]),
   ((select id from public.categories where slug = $t$sports-energy$t$), $t$h24-rebuild-strength$t$, $t$H24 Rebuild Strength$t$,
     $t$A post-workout recovery shake with 24-25 g protein, BCAAs and L-glutamine that helps rebuild muscle and reduce soreness after strength training and intense exercise.$t$,
-    240000, null, 100, $t$/products/24.webp$t$, array[$t$/product-info/sports-nutrition.jpeg$t$])
+    261600, null, 100, $t$/products/24.webp$t$, array[$t$/product-info/sports-nutrition.jpeg$t$])
 on conflict (slug) do update set
   name = excluded.name, description = excluded.description, price_paise = excluded.price_paise,
   weight_grams = excluded.weight_grams, image_url = excluded.image_url,
@@ -380,19 +381,19 @@ on conflict (slug) do update set
 insert into public.products (category_id, slug, name, description, price_paise, weight_grams, stock, image_url, gallery_image_urls) values
   ((select id from public.categories where slug = $t$skin-care$t$), $t$skin-booster$t$, $t$HN Skin Booster$t$,
     $t$An orange-flavour collagen powder with vitamins A, C, E and biotin that helps improve skin elasticity, hydration and glow - and supports healthy hair and nails.$t$,
-    190000, null, 100, $t$/products/25.webp$t$, array[$t$/product-info/skin-health.jpeg$t$]),
+    391000, null, 100, $t$/products/25.webp$t$, array[$t$/product-info/skin-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$skin-care$t$), $t$facial-cleanser$t$, $t$Facial Cleanser$t$,
     $t$A gentle daily cleanser with jojoba beads, aloe vera and vitamins B3, C & E that removes dirt, oil and makeup, leaving skin clean, smooth and refreshed.$t$,
-    65000, null, 100, $t$/products/30.webp$t$, array[$t$/product-info/skin-health.jpeg$t$]),
+    116500, null, 100, $t$/products/30.webp$t$, array[$t$/product-info/skin-health.jpeg$t$]),
   ((select id from public.categories where slug = $t$skin-care$t$), $t$facial-toner$t$, $t$Facial Toner$t$,
     $t$An alcohol-free toner with aloe vera, mandarin citrus extracts and vitamins B3, C & E that refreshes skin and preps it to better absorb serum and moisturizer. All skin types.$t$,
-    60000, null, 100, $t$/products/31.webp$t$, array[$t$/product-info/skin-health-2.jpeg$t$]),
+    132200, null, 100, $t$/products/31.webp$t$, array[$t$/product-info/skin-health-2.jpeg$t$]),
   ((select id from public.categories where slug = $t$skin-care$t$), $t$moisturizer$t$, $t$Moisturizer$t$,
     $t$A lightweight daily moisturizer with aloe vera, macadamia and olive oils that delivers deep hydration - clinically shown to improve skin softness and luminosity in 7 days.$t$,
-    75000, null, 100, $t$/products/32.webp$t$, array[$t$/product-info/skin-health-2.jpeg$t$]),
+    147300, null, 100, $t$/products/32.webp$t$, array[$t$/product-info/skin-health-2.jpeg$t$]),
   ((select id from public.categories where slug = $t$skin-care$t$), $t$facial-serum$t$, $t$Facial Serum$t$,
     $t$A concentrated serum with peptides, botanical extracts and vitamins B3, C & E that helps reduce fine lines, brighten and firm skin for a fresh, youthful glow.$t$,
-    120000, null, 100, $t$/products/33.webp$t$, array[$t$/product-info/skin-health-2.jpeg$t$])
+    302200, null, 100, $t$/products/33.webp$t$, array[$t$/product-info/skin-health-2.jpeg$t$])
 on conflict (slug) do update set
   name = excluded.name, description = excluded.description, price_paise = excluded.price_paise,
   weight_grams = excluded.weight_grams, image_url = excluded.image_url,

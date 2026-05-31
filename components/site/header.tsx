@@ -43,19 +43,15 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="container-prose flex h-16 items-center gap-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 font-display text-2xl font-bold tracking-tight"
-        >
+        <Link href="/" className="flex items-center" aria-label={STORE_NAME}>
           <Image
             src="/logo.png"
             alt={STORE_NAME}
-            width={40}
-            height={40}
-            className="h-9 w-9 object-contain"
+            width={220}
+            height={64}
+            className="h-12 w-auto object-contain md:h-14"
             priority
           />
-          {STORE_NAME}
         </Link>
 
         <nav className="hidden md:flex items-center gap-7 text-sm">
