@@ -1,13 +1,7 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { ProductCard } from "@/components/site/product-card";
-import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/check";
-import {
-  seedCategoryBySlug,
-  seedProductsByCategoryId,
-} from "@/lib/seed-data";
-import type { Category, ProductWithCategory } from "@/lib/types";
+import { getCategoryBySlug, getProducts } from "@/lib/data/catalog";
 
 export const revalidate = 60;
 
@@ -17,28 +11,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  if (!isSupabaseConfigured()) {
-    const c = seedCategoryBySlug(slug);
-    return {
-      title: c?.name ?? "Category",
-      description: c?.description ?? undefined,
-    };
-  }
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("categories")
-      .select("name, description")
-      .eq("slug", slug)
-      .maybeSingle();
-    return {
-      title: data?.name ?? "Category",
-      description: data?.description ?? undefined,
-    };
-  } catch {
-    const c = seedCategoryBySlug(slug);
-    return { title: c?.name ?? "Category" };
-  }
+  const c = await getCategoryBySlug(slug);
+  return {
+    title: c?.name ?? "Category",
+    description: c?.description ?? undefined,
+  };
 }
 
 export default async function CategoryPage({
@@ -47,42 +24,10 @@ export default async function CategoryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const configured = isSupabaseConfigured();
 
-  let category: Category | null;
-  let products: ProductWithCategory[];
-
-  if (configured) {
-    try {
-      const supabase = await createClient();
-      const { data } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("slug", slug)
-        .maybeSingle<Category>();
-      category = data ?? seedCategoryBySlug(slug);
-      if (!category) notFound();
-
-      const { data: productsRaw } = await supabase
-        .from("products")
-        .select("*, category:categories(id, slug, name)")
-        .eq("category_id", category.id)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-      products = (productsRaw ?? []) as ProductWithCategory[];
-      if (products.length === 0) {
-        products = seedProductsByCategoryId(category.id);
-      }
-    } catch {
-      category = seedCategoryBySlug(slug);
-      if (!category) notFound();
-      products = seedProductsByCategoryId(category.id);
-    }
-  } else {
-    category = seedCategoryBySlug(slug);
-    if (!category) notFound();
-    products = seedProductsByCategoryId(category.id);
-  }
+  const category = await getCategoryBySlug(slug);
+  if (!category) notFound();
+  const products = await getProducts({ categorySlug: slug });
 
   const banner = category.image_url || `/categories/${category.slug}.svg`;
 

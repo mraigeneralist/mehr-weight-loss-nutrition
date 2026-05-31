@@ -1,12 +1,39 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/check";
+import { DATA_BACKEND, isSheetsConfigured } from "@/lib/data/backend";
 import { CheckoutFlow } from "@/components/site/checkout-flow";
 import type { Address } from "@/lib/types";
 
 export const metadata = { title: "Checkout" };
 
 export default async function CheckoutPage() {
+  // Sheets backend: guest checkout, no Supabase account required.
+  if (DATA_BACKEND === "sheets") {
+    if (!isSheetsConfigured()) redirect("/?setup=needed");
+    return (
+      <div className="container-prose py-12">
+        <header className="mb-8">
+          <h1 className="font-display text-4xl font-bold md:text-5xl">
+            Checkout
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Pay securely via Razorpay. UPI, cards, and net-banking supported.
+          </p>
+        </header>
+        <CheckoutFlow
+          guest
+          userId=""
+          userEmail=""
+          userName=""
+          userPhone=""
+          addresses={[]}
+        />
+      </div>
+    );
+  }
+
+  // Supabase backend: authenticated checkout against a saved address.
   if (!isSupabaseConfigured()) redirect("/?setup=needed");
   const supabase = await createClient();
   const {

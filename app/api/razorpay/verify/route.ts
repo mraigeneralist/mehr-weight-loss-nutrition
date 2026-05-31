@@ -6,31 +6,160 @@ import {
   SHIPPING_FLAT_PAISE,
   FREE_SHIP_THRESHOLD_PAISE,
 } from "@/lib/constants";
+import { DATA_BACKEND } from "@/lib/data/backend";
+import { getProductsByIds } from "@/lib/data/catalog";
+import { recordOrderToSheet } from "@/lib/data/orders";
 import type { Address, Product } from "@/lib/types";
 
-const Body = z.object({
+const Sig = z.object({
   razorpay_order_id: z.string(),
   razorpay_payment_id: z.string(),
   razorpay_signature: z.string(),
 });
 
+const Items = z
+  .array(
+    z.object({
+      productId: z.string().min(1),
+      quantity: z.number().int().positive(),
+    }),
+  )
+  .min(1);
+
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
-  const parsed = Body.safeParse(json);
-  if (!parsed.success) {
+  const sig = Sig.safeParse(json);
+  if (!sig.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   // Verify signature first — refuse anything we can't trust.
   const ok = verifyRazorpaySignature({
-    orderId: parsed.data.razorpay_order_id,
-    paymentId: parsed.data.razorpay_payment_id,
-    signature: parsed.data.razorpay_signature,
+    orderId: sig.data.razorpay_order_id,
+    paymentId: sig.data.razorpay_payment_id,
+    signature: sig.data.razorpay_signature,
   });
   if (!ok) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  if (DATA_BACKEND === "sheets") return verifySheets(json, sig.data);
+  return verifySupabase(json, sig.data);
+}
+
+type SigData = z.infer<typeof Sig>;
+
+// ---------------------------------------------------------------------------
+// Sheets backend: re-price from the sheet, append the paid order to "Orders".
+// ---------------------------------------------------------------------------
+const GuestVerify = z.object({
+  items: Items,
+  customer: z.object({
+    name: z.string().min(1),
+    email: z.string().optional(),
+    phone: z.string().min(1),
+  }),
+  address: z.object({
+    line1: z.string().min(1),
+    line2: z.string().optional(),
+    city: z.string().min(1),
+    state: z.string().min(1),
+    pincode: z.string().min(1),
+  }),
+});
+
+async function verifySheets(json: unknown, sig: SigData) {
+  const parsed = GuestVerify.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Missing order details" }, { status: 400 });
+  }
+
+  let rzpOrder;
+  try {
+    rzpOrder = await getRazorpay().orders.fetch(sig.razorpay_order_id);
+  } catch {
+    return NextResponse.json(
+      { error: "Could not fetch Razorpay order" },
+      { status: 500 },
+    );
+  }
+  if (rzpOrder.status !== "paid") {
+    return NextResponse.json(
+      { error: `Order not paid (status: ${rzpOrder.status})` },
+      { status: 400 },
+    );
+  }
+
+  const { items, customer, address } = parsed.data;
+  const products = await getProductsByIds(items.map((i) => i.productId));
+  const map = new Map(products.map((p) => [p.id, p]));
+
+  let subtotal = 0;
+  const orderItems = [];
+  for (const it of items) {
+    const p = map.get(it.productId);
+    if (!p) {
+      return NextResponse.json(
+        { error: "Product no longer available" },
+        { status: 400 },
+      );
+    }
+    subtotal += p.price_paise * it.quantity;
+    orderItems.push({
+      name: p.name,
+      quantity: it.quantity,
+      price_paise: p.price_paise,
+    });
+  }
+  const shipping =
+    subtotal >= FREE_SHIP_THRESHOLD_PAISE ? 0 : SHIPPING_FLAT_PAISE;
+  const total = subtotal + shipping;
+
+  if (total !== Number(rzpOrder.amount)) {
+    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+  }
+
+  const ref = `MEHR-${Date.now().toString(36).toUpperCase()}`;
+  const addressStr = [
+    address.line1,
+    address.line2,
+    `${address.city}, ${address.state} ${address.pincode}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  try {
+    await recordOrderToSheet({
+      ref,
+      customer_name: customer.name,
+      email: customer.email ?? "",
+      phone: customer.phone,
+      address: addressStr,
+      items: orderItems,
+      subtotal_paise: subtotal,
+      shipping_paise: shipping,
+      total_paise: total,
+      razorpay_order_id: sig.razorpay_order_id,
+      razorpay_payment_id: sig.razorpay_payment_id,
+    });
+  } catch (e) {
+    console.error("Failed to append order to sheet", e);
+    return NextResponse.json(
+      { error: "Payment captured but order could not be saved" },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    order_id: ref,
+    redirect: `/order-confirmed?ref=${encodeURIComponent(ref)}`,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Supabase backend: authenticated order, written to orders/order_items.
+// ---------------------------------------------------------------------------
+async function verifySupabase(json: unknown, sig: SigData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -42,8 +171,8 @@ export async function POST(req: Request) {
   // Pull authoritative order info from Razorpay (notes carry user_id + address_id)
   let rzpOrder;
   try {
-    rzpOrder = await getRazorpay().orders.fetch(parsed.data.razorpay_order_id);
-  } catch (e) {
+    rzpOrder = await getRazorpay().orders.fetch(sig.razorpay_order_id);
+  } catch {
     return NextResponse.json(
       { error: "Could not fetch Razorpay order" },
       { status: 500 },
@@ -62,23 +191,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Order/user mismatch" }, { status: 403 });
   }
 
-  // Fetch line items from Razorpay payments (we'll need item ids/qty from our own session)
-  // Instead we look up the latest cart-equivalent: use the address from notes and
-  // re-derive items from the payment description? — Razorpay doesn't store our cart.
-  // We persisted nothing yet, so we need the cart from the request? — but the
-  // verifier shouldn't trust the client cart any more than create-order did.
-  //
-  // Solution: re-create line items by reading the address and re-pricing the
-  // last unverified order whose razorpay_order_id matches. Since we don't
-  // persist orders before payment, we read the cart from a separate request body.
-  // But we already moved this off the body for security.
-  //
-  // Simplest robust approach for v1: the client posts the ITEM IDs as well
-  // and we re-price from DB and compare against Razorpay's amount. Mismatch → reject.
-
-  // Read items from the request body again (we already parsed via zod which is
-  // strict; extend it inline).
-  const ExtBody = Body.extend({
+  // The client posts the cart item ids + address so we can re-price from the DB
+  // and compare against Razorpay's amount. Mismatch → reject.
+  const ExtBody = Sig.extend({
     items: z
       .array(
         z.object({
@@ -91,13 +206,10 @@ export async function POST(req: Request) {
     address_id: z.string().uuid().optional(),
   });
   const ext = ExtBody.safeParse(json);
-  let lineItemsInput = ext.success ? ext.data.items : undefined;
+  const lineItemsInput = ext.success ? ext.data.items : undefined;
   let addressIdInput = ext.success ? ext.data.address_id : undefined;
   if (!lineItemsInput || lineItemsInput.length === 0) {
-    return NextResponse.json(
-      { error: "Missing line items" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing line items" }, { status: 400 });
   }
   if (!addressIdInput) addressIdInput = notes.address_id;
 
@@ -128,10 +240,7 @@ export async function POST(req: Request) {
   const total = subtotal + shipping;
 
   if (total !== Number(rzpOrder.amount)) {
-    return NextResponse.json(
-      { error: "Amount mismatch" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
   }
 
   // Address snapshot
@@ -161,7 +270,7 @@ export async function POST(req: Request) {
   const { data: existing } = await svc
     .from("orders")
     .select("id")
-    .eq("razorpay_order_id", parsed.data.razorpay_order_id)
+    .eq("razorpay_order_id", sig.razorpay_order_id)
     .maybeSingle<{ id: string }>();
   if (existing) {
     return NextResponse.json({ order_id: existing.id });
@@ -171,9 +280,9 @@ export async function POST(req: Request) {
     .from("orders")
     .insert({
       user_id: user.id,
-      razorpay_order_id: parsed.data.razorpay_order_id,
-      razorpay_payment_id: parsed.data.razorpay_payment_id,
-      razorpay_signature: parsed.data.razorpay_signature,
+      razorpay_order_id: sig.razorpay_order_id,
+      razorpay_payment_id: sig.razorpay_payment_id,
+      razorpay_signature: sig.razorpay_signature,
       status: "paid",
       subtotal_paise: subtotal,
       shipping_paise: shipping,

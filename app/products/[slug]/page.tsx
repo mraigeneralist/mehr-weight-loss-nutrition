@@ -1,17 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Leaf, ShieldCheck, Truck, Undo2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/check";
-import {
-  seedProductBySlug,
-  seedProductsByCategoryId,
-} from "@/lib/seed-data";
+import { getProductBySlug, getRelatedProducts } from "@/lib/data/catalog";
 import { formatINR } from "@/lib/format";
 import { ProductCard } from "@/components/site/product-card";
 import { AddToCartButton } from "@/components/site/add-to-cart-button";
 import { ProductGallery } from "@/components/site/product-gallery";
-import type { ProductWithCategory } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -21,28 +15,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  if (!isSupabaseConfigured()) {
-    const p = seedProductBySlug(slug);
-    return {
-      title: p?.name ?? "Product",
-      description: p?.description ?? undefined,
-    };
-  }
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("products")
-      .select("name, description")
-      .eq("slug", slug)
-      .maybeSingle();
-    return {
-      title: data?.name ?? "Product",
-      description: data?.description ?? undefined,
-    };
-  } catch {
-    const p = seedProductBySlug(slug);
-    return { title: p?.name ?? "Product" };
-  }
+  const p = await getProductBySlug(slug);
+  return {
+    title: p?.name ?? "Product",
+    description: p?.description ?? undefined,
+  };
 }
 
 export default async function ProductDetailPage({
@@ -51,50 +28,10 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const configured = isSupabaseConfigured();
 
-  let product: ProductWithCategory | null = null;
-  let related: ProductWithCategory[] = [];
-
-  if (configured) {
-    try {
-      const supabase = await createClient();
-      const { data } = await supabase
-        .from("products")
-        .select("*, category:categories(id, slug, name)")
-        .eq("slug", slug)
-        .eq("is_active", true)
-        .maybeSingle<ProductWithCategory>();
-      product = data ?? seedProductBySlug(slug);
-      if (!product) notFound();
-
-      const { data: relatedRaw } = await supabase
-        .from("products")
-        .select("*, category:categories(id, slug, name)")
-        .eq("category_id", product.category_id)
-        .eq("is_active", true)
-        .neq("id", product.id)
-        .limit(4);
-      related = (relatedRaw ?? []) as ProductWithCategory[];
-      if (related.length === 0) {
-        related = seedProductsByCategoryId(product.category_id)
-          .filter((p) => p.id !== product!.id)
-          .slice(0, 4);
-      }
-    } catch {
-      product = seedProductBySlug(slug);
-      if (!product) notFound();
-      related = seedProductsByCategoryId(product.category_id)
-        .filter((p) => p.id !== product!.id)
-        .slice(0, 4);
-    }
-  } else {
-    product = seedProductBySlug(slug);
-    if (!product) notFound();
-    related = seedProductsByCategoryId(product.category_id)
-      .filter((p) => p.id !== product!.id)
-      .slice(0, 4);
-  }
+  const product = await getProductBySlug(slug);
+  if (!product) notFound();
+  const related = await getRelatedProducts(product.category_id, product.id, 4);
 
   const cover = product.image_url || `/products/${product.slug}.svg`;
   const gallery = [cover, ...(product.gallery_image_urls ?? [])].filter(

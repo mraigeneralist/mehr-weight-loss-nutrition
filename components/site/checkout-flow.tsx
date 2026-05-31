@@ -6,6 +6,8 @@ import Link from "next/link";
 import Script from "next/script";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { AddressManager } from "@/components/site/address-manager";
 import { useCart } from "@/lib/cart-store";
@@ -13,6 +15,7 @@ import { formatINR } from "@/lib/format";
 import {
   SHIPPING_FLAT_PAISE,
   FREE_SHIP_THRESHOLD_PAISE,
+  INDIAN_STATES,
 } from "@/lib/constants";
 import type { Address } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -35,12 +38,36 @@ declare global {
   }
 }
 
+type GuestForm = {
+  name: string;
+  email: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+};
+
+const EMPTY_GUEST: GuestForm = {
+  name: "",
+  email: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  pincode: "",
+};
+
 type Props = {
   userId: string;
   userEmail: string;
   userName: string;
   userPhone: string;
   addresses: Address[];
+  /** Sheets backend: collect customer + address inline, no Supabase account. */
+  guest?: boolean;
 };
 
 export function CheckoutFlow({
@@ -48,6 +75,7 @@ export function CheckoutFlow({
   userName,
   userPhone,
   addresses: initialAddresses,
+  guest = false,
 }: Props) {
   const router = useRouter();
   const items = useCart((s) => s.items);
@@ -60,6 +88,7 @@ export function CheckoutFlow({
       initialAddresses[0]?.id ??
       null,
   );
+  const [g, setG] = useState<GuestForm>(EMPTY_GUEST);
   const [hydrated, setHydrated] = useState(false);
   const [placing, setPlacing] = useState(false);
 
@@ -68,6 +97,16 @@ export function CheckoutFlow({
   const shipping =
     subtotal >= FREE_SHIP_THRESHOLD_PAISE ? 0 : SHIPPING_FLAT_PAISE;
   const total = subtotal + shipping;
+
+  const guestValid =
+    g.name.trim() !== "" &&
+    g.phone.trim().length >= 5 &&
+    g.line1.trim() !== "" &&
+    g.city.trim() !== "" &&
+    g.state.trim() !== "" &&
+    g.pincode.trim().length >= 4;
+
+  const canPay = items.length > 0 && (guest ? guestValid : !!selectedId);
 
   if (hydrated && items.length === 0) {
     return (
@@ -81,8 +120,10 @@ export function CheckoutFlow({
   }
 
   async function placeOrder() {
-    if (!selectedId) {
-      toast.error("Pick a shipping address");
+    if (!canPay) {
+      toast.error(
+        guest ? "Fill in your name, phone and address" : "Pick a shipping address",
+      );
       return;
     }
     if (typeof window === "undefined" || !window.Razorpay) {
@@ -92,18 +133,33 @@ export function CheckoutFlow({
 
     setPlacing(true);
 
+    const lineItems = items.map((i) => ({
+      productId: i.productId,
+      quantity: i.quantity,
+    }));
+    const guestPayload = guest
+      ? {
+          customer: { name: g.name, email: g.email, phone: g.phone },
+          address: {
+            line1: g.line1,
+            line2: g.line2,
+            city: g.city,
+            state: g.state,
+            pincode: g.pincode,
+          },
+        }
+      : {};
+
     try {
       // Step 1: create Razorpay order on the server
       const createRes = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          items: items.map((i) => ({
-            productId: i.productId,
-            quantity: i.quantity,
-          })),
-          address_id: selectedId,
-        }),
+        body: JSON.stringify(
+          guest
+            ? { items: lineItems, ...guestPayload }
+            : { items: lineItems, address_id: selectedId },
+        ),
       });
 
       const created = await createRes.json();
@@ -119,11 +175,11 @@ export function CheckoutFlow({
         description: `${items.length} item${items.length > 1 ? "s" : ""}`,
         order_id: created.razorpay_order_id,
         prefill: {
-          name: userName,
-          email: userEmail,
-          contact: userPhone,
+          name: guest ? g.name : userName,
+          email: guest ? g.email : userEmail,
+          contact: guest ? g.phone : userPhone,
         },
-        theme: { color: "#5F7A52" },
+        theme: { color: "#2e7d1f" },
         handler: async (response: any) => {
           try {
             const verifyRes = await fetch("/api/razorpay/verify", {
@@ -133,11 +189,8 @@ export function CheckoutFlow({
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                items: items.map((i) => ({
-                  productId: i.productId,
-                  quantity: i.quantity,
-                })),
-                address_id: selectedId,
+                items: lineItems,
+                ...(guest ? guestPayload : { address_id: selectedId }),
               }),
             });
             const verified = await verifyRes.json();
@@ -146,7 +199,9 @@ export function CheckoutFlow({
             }
             clear();
             toast.success("Order placed!");
-            router.push(`/account/orders/${verified.order_id}`);
+            router.push(
+              verified.redirect ?? `/account/orders/${verified.order_id}`,
+            );
           } catch (e: any) {
             toast.error(e.message ?? "Verification failed");
           } finally {
@@ -174,67 +229,139 @@ export function CheckoutFlow({
         <div className="space-y-6 lg:col-span-2">
           <section className="rounded-2xl border border-border bg-card p-6">
             <h2 className="font-display text-xl font-semibold">
-              Shipping address
+              Shipping {guest ? "details" : "address"}
             </h2>
-            {addresses.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Add an address below to continue.
-              </p>
-            ) : (
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                {addresses.map((a) => (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(a.id)}
-                      className={cn(
-                        "w-full rounded-2xl border p-4 text-left transition-colors",
-                        selectedId === a.id
-                          ? "border-sage-deep bg-sage/10"
-                          : "border-border bg-background hover:bg-sand/40",
-                      )}
-                    >
-                      <p className="text-sm font-medium">
-                        {a.label || "Address"}
-                        {a.is_default && (
-                          <span className="ml-2 rounded-full bg-sage/15 px-2 py-0.5 text-[10px] font-medium text-sage-deep">
-                            Default
-                          </span>
-                        )}
-                      </p>
-                      <p className="mt-1 text-sm">{a.recipient_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {a.line1}
-                        {a.line2 ? `, ${a.line2}` : ""},{" "}
-                        {a.city}, {a.state} {a.pincode}
-                      </p>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="mt-5">
-              <details className="group">
-                <summary className="cursor-pointer text-sm font-medium text-sage-deep">
-                  + Add a new address
-                </summary>
-                <div className="mt-4">
-                  <AddressManager
-                    initial={[]}
-                    onSaved={(addr) => {
-                      setAddresses((prev) => mergeAddress(prev, addr));
-                      setSelectedId(addr.id);
-                    }}
-                    onDeleted={(id) => {
-                      setAddresses((prev) =>
-                        prev.filter((a) => a.id !== id),
-                      );
-                      setSelectedId((curr) => (curr === id ? null : curr));
-                    }}
+
+            {guest ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Full name" required>
+                  <Input
+                    value={g.name}
+                    onChange={(e) => setG({ ...g, name: e.target.value })}
+                    placeholder="Your name"
                   />
+                </Field>
+                <Field label="Phone" required>
+                  <Input
+                    value={g.phone}
+                    onChange={(e) => setG({ ...g, phone: e.target.value })}
+                    placeholder="10-digit mobile"
+                    inputMode="tel"
+                  />
+                </Field>
+                <Field label="Email" className="sm:col-span-2">
+                  <Input
+                    type="email"
+                    value={g.email}
+                    onChange={(e) => setG({ ...g, email: e.target.value })}
+                    placeholder="you@example.com (optional)"
+                  />
+                </Field>
+                <Field label="Address line 1" required className="sm:col-span-2">
+                  <Input
+                    value={g.line1}
+                    onChange={(e) => setG({ ...g, line1: e.target.value })}
+                    placeholder="House no., street"
+                  />
+                </Field>
+                <Field label="Address line 2" className="sm:col-span-2">
+                  <Input
+                    value={g.line2}
+                    onChange={(e) => setG({ ...g, line2: e.target.value })}
+                    placeholder="Area, landmark (optional)"
+                  />
+                </Field>
+                <Field label="City" required>
+                  <Input
+                    value={g.city}
+                    onChange={(e) => setG({ ...g, city: e.target.value })}
+                  />
+                </Field>
+                <Field label="State" required>
+                  <select
+                    value={g.state}
+                    onChange={(e) => setG({ ...g, state: e.target.value })}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Select state</option>
+                    {INDIAN_STATES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Pincode" required>
+                  <Input
+                    value={g.pincode}
+                    onChange={(e) => setG({ ...g, pincode: e.target.value })}
+                    inputMode="numeric"
+                  />
+                </Field>
+              </div>
+            ) : (
+              <>
+                {addresses.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Add an address below to continue.
+                  </p>
+                ) : (
+                  <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {addresses.map((a) => (
+                      <li key={a.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(a.id)}
+                          className={cn(
+                            "w-full rounded-2xl border p-4 text-left transition-colors",
+                            selectedId === a.id
+                              ? "border-sage-deep bg-sage/10"
+                              : "border-border bg-background hover:bg-sand/40",
+                          )}
+                        >
+                          <p className="text-sm font-medium">
+                            {a.label || "Address"}
+                            {a.is_default && (
+                              <span className="ml-2 rounded-full bg-sage/15 px-2 py-0.5 text-[10px] font-medium text-sage-deep">
+                                Default
+                              </span>
+                            )}
+                          </p>
+                          <p className="mt-1 text-sm">{a.recipient_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {a.line1}
+                            {a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state}{" "}
+                            {a.pincode}
+                          </p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-5">
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm font-medium text-sage-deep">
+                      + Add a new address
+                    </summary>
+                    <div className="mt-4">
+                      <AddressManager
+                        initial={[]}
+                        onSaved={(addr) => {
+                          setAddresses((prev) => mergeAddress(prev, addr));
+                          setSelectedId(addr.id);
+                        }}
+                        onDeleted={(id) => {
+                          setAddresses((prev) =>
+                            prev.filter((a) => a.id !== id),
+                          );
+                          setSelectedId((curr) => (curr === id ? null : curr));
+                        }}
+                      />
+                    </div>
+                  </details>
                 </div>
-              </details>
-            </div>
+              </>
+            )}
           </section>
         </div>
 
@@ -277,15 +404,17 @@ export function CheckoutFlow({
             className="mt-5 w-full"
             size="lg"
             onClick={placeOrder}
-            disabled={placing || !selectedId || items.length === 0}
+            disabled={placing || !canPay}
           >
             {placing ? "Processing…" : "Pay with Razorpay"}
           </Button>
-          {!selectedId && hydrated && items.length > 0 && (
+          {!canPay && hydrated && items.length > 0 && (
             <p className="mt-2 text-center text-xs text-terracotta">
-              {addresses.length === 0
-                ? "Add a shipping address to continue."
-                : "Select a shipping address to continue."}
+              {guest
+                ? "Fill in your name, phone and address to continue."
+                : addresses.length === 0
+                  ? "Add a shipping address to continue."
+                  : "Select a shipping address to continue."}
             </p>
           )}
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -294,5 +423,27 @@ export function CheckoutFlow({
         </aside>
       </div>
     </>
+  );
+}
+
+function Field({
+  label,
+  required,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-xs text-muted-foreground">
+        {label}
+        {required && <span className="text-terracotta"> *</span>}
+      </Label>
+      {children}
+    </div>
   );
 }

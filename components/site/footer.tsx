@@ -8,6 +8,7 @@ import {
   STORE_EMAIL,
   STORE_ADDRESS,
 } from "@/lib/constants";
+import { DATA_BACKEND } from "@/lib/data/backend";
 
 export function SiteFooter() {
   return (
@@ -64,15 +65,26 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        <div>
-          <h4 className="font-display text-base">Account</h4>
-          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li><Link href="/login" className="hover:text-foreground">Sign in</Link></li>
-            <li><Link href="/sign-up" className="hover:text-foreground">Create account</Link></li>
-            <li><Link href="/account/orders" className="hover:text-foreground">Track order</Link></li>
-            <li><Link href="/cart" className="hover:text-foreground">Cart</Link></li>
-          </ul>
-        </div>
+        {DATA_BACKEND === "sheets" ? (
+          <div>
+            <h4 className="font-display text-base">Help</h4>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/cart" className="hover:text-foreground">Cart</Link></li>
+              <li><a href={`tel:${STORE_PHONE.replace(/\s/g, "")}`} className="hover:text-foreground">Call to order</a></li>
+              <li><a href={`mailto:${STORE_EMAIL}`} className="hover:text-foreground">Email us</a></li>
+            </ul>
+          </div>
+        ) : (
+          <div>
+            <h4 className="font-display text-base">Account</h4>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/login" className="hover:text-foreground">Sign in</Link></li>
+              <li><Link href="/sign-up" className="hover:text-foreground">Create account</Link></li>
+              <li><Link href="/account/orders" className="hover:text-foreground">Track order</Link></li>
+              <li><Link href="/cart" className="hover:text-foreground">Cart</Link></li>
+            </ul>
+          </div>
+        )}
       </div>
       <div className="border-t border-border/60">
         <div className="container-prose flex flex-col gap-2 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">

@@ -4,46 +4,17 @@ import { Button } from "@/components/ui/button";
 import { CategoryCard } from "@/components/site/category-card";
 import { ProductCard } from "@/components/site/product-card";
 import { DemoBanner } from "@/components/site/demo-banner";
-import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/check";
-import { SEED_CATEGORIES, SEED_PRODUCTS } from "@/lib/seed-data";
-import type { Category, ProductWithCategory } from "@/lib/types";
+import { isDataConfigured } from "@/lib/data/backend";
+import { getCategories, getProducts } from "@/lib/data/catalog";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const configured = isSupabaseConfigured();
-  let cats: Category[];
-  let featured: ProductWithCategory[];
-
-  if (configured) {
-    const supabase = await createClient();
-    try {
-      const [{ data: categories }, { data: products }] = await Promise.all([
-        supabase
-          .from("categories")
-          .select("*")
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("products")
-          .select("*, category:categories(id, slug, name)")
-          .eq("is_active", true)
-          .order("created_at", { ascending: false })
-          .limit(8),
-      ]);
-      cats = (categories ?? []) as Category[];
-      featured = (products ?? []) as ProductWithCategory[];
-      // If the schema hasn't been seeded yet, fall back so the demo still shows.
-      if (cats.length === 0) cats = SEED_CATEGORIES;
-      if (featured.length === 0) featured = SEED_PRODUCTS.slice(0, 8);
-    } catch {
-      cats = SEED_CATEGORIES;
-      featured = SEED_PRODUCTS.slice(0, 8);
-    }
-  } else {
-    cats = SEED_CATEGORIES;
-    featured = SEED_PRODUCTS.slice(0, 8);
-  }
+  const configured = isDataConfigured();
+  const [cats, featured] = await Promise.all([
+    getCategories(),
+    getProducts({ limit: 8 }),
+  ]);
 
   return (
     <>

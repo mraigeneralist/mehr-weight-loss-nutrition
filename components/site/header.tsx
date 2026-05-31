@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/check";
 import { CartButton } from "@/components/site/cart-button";
 import { AccountMenu } from "@/components/site/account-menu";
 import { STORE_NAME } from "@/lib/constants";
+import { DATA_BACKEND } from "@/lib/data/backend";
 
 const NAV = [
   { href: "/products", label: "Shop all" },
@@ -71,19 +72,20 @@ export async function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-1">
           <CartButton />
-          {user ? (
-            <AccountMenu
-              email={user.email ?? ""}
-              displayName={displayName}
-            />
-          ) : (
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm hover:bg-sand transition-colors"
-            >
-              <User2 className="h-4 w-4" /> Sign in
-            </Link>
-          )}
+          {DATA_BACKEND !== "sheets" &&
+            (user ? (
+              <AccountMenu
+                email={user.email ?? ""}
+                displayName={displayName}
+              />
+            ) : (
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm hover:bg-sand transition-colors"
+              >
+                <User2 className="h-4 w-4" /> Sign in
+              </Link>
+            ))}
         </div>
       </div>
     </header>
