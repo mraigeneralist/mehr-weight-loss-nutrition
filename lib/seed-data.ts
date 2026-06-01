@@ -405,8 +405,13 @@ export const SEED_PRODUCTS: ProductWithCategory[] = [
     "A low-calorie electrolyte drink that replenishes minerals lost through sweat and supports endurance and energy metabolism with B vitamins. Convenient sachets for any workout.",
     163600,
     null,
-    P(23),
-    [INFO("sports-nutrition")],
+    "/products/h24-hydrate/img1.jpg",
+    [
+      "/products/h24-hydrate/img2.jpg",
+      "/products/h24-hydrate/img4.jpg",
+      "/products/h24-hydrate/img5.jpg",
+      "/products/h24-hydrate/img3.jpg",
+    ],
   ),
   product(
     "40000000-0000-0000-0000-000000000002",

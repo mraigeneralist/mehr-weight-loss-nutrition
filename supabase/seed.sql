@@ -368,7 +368,7 @@ on conflict (slug) do update set
 insert into public.products (category_id, slug, name, description, price_paise, weight_grams, stock, image_url, gallery_image_urls) values
   ((select id from public.categories where slug = $t$sports-energy$t$), $t$h24-hydrate$t$, $t$H24 Hydrate$t$,
     $t$A low-calorie electrolyte drink that replenishes minerals lost through sweat and supports endurance and energy metabolism with B vitamins. Convenient sachets for any workout.$t$,
-    163600, null, 100, $t$/products/23.webp$t$, array[$t$/product-info/sports-nutrition.jpeg$t$]),
+    163600, null, 100, $t$/products/h24-hydrate/img1.jpg$t$, array[$t$/products/h24-hydrate/img2.jpg$t$, $t$/products/h24-hydrate/img4.jpg$t$, $t$/products/h24-hydrate/img5.jpg$t$, $t$/products/h24-hydrate/img3.jpg$t$]),
   ((select id from public.categories where slug = $t$sports-energy$t$), $t$h24-rebuild-strength$t$, $t$H24 Rebuild Strength$t$,
     $t$A post-workout recovery shake with 24-25 g protein, BCAAs and L-glutamine that helps rebuild muscle and reduce soreness after strength training and intense exercise.$t$,
     261600, null, 100, $t$/products/24.webp$t$, array[$t$/product-info/sports-nutrition.jpeg$t$])
