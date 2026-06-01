@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Leaf, ShieldCheck, Truck, Undo2 } from "lucide-react";
+import { Check, Leaf, ShieldCheck, Truck, Undo2 } from "lucide-react";
 import { getProductBySlug, getRelatedProducts } from "@/lib/data/catalog";
+import { PRODUCT_BENEFITS } from "@/lib/product-benefits";
 import { formatINR } from "@/lib/format";
 import { ProductCard } from "@/components/site/product-card";
 import { AddToCartButton } from "@/components/site/add-to-cart-button";
@@ -33,6 +34,7 @@ export default async function ProductDetailPage({
   if (!product) notFound();
   const related = await getRelatedProducts(product.category_id, product.id, 4);
 
+  const benefits = PRODUCT_BENEFITS[product.slug] ?? [];
   const cover = product.image_url || `/products/${product.slug}.svg`;
   const gallery = [cover, ...(product.gallery_image_urls ?? [])].filter(
     Boolean,
@@ -85,6 +87,20 @@ export default async function ProductDetailPage({
             <p className="mt-6 max-w-prose text-base leading-relaxed text-muted-foreground">
               {product.description}
             </p>
+          )}
+
+          {benefits.length > 0 && (
+            <div className="mt-7">
+              <h2 className="font-display text-lg font-semibold">Benefits</h2>
+              <ul className="mt-3 space-y-2">
+                {benefits.map((b) => (
+                  <li key={b} className="flex items-start gap-2.5 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-sage-deep" />
+                    <span className="text-muted-foreground">{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           <div className="mt-8 max-w-sm">
